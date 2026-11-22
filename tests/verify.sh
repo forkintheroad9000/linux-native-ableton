@@ -40,10 +40,23 @@ for f in shim/libmenufix.so shim/libpathfix.so shim/libswupdate.so.0.1 shim/libh
     [ -s "$T/$f" ] || { echo "FAIL: $f was not built"; exit 1; }
 done
 fail=0
-for t in "font-bindings.sh $PREFIX" "live-bindings.sh $PREFIX" "audit-scope.sh $T/shim/libhideexports.so" "launcher-env.sh" \
+for t in "font-bindings.sh $PREFIX" "live-bindings.sh $PREFIX" "audit-scope.sh $T/shim/libhideexports.so" "launcher-env.sh" "swap-limit.sh" \
          "helper-env.sh $T/shim/libmenufix.so $PREFIX" "bundled-providers.sh $PREFIX" "sysroot-signatures.sh" \
          "chrome-regressions.sh $T/shim" \
          "chrome-scale.sh $T/shim" \
+         "editor-colour.sh $T/shim" \
+         "editor-colour-hooks.sh $T/shim" \
+         "editor-colour-instant.sh $T/shim" \
+         "editor-colour-reads.sh $T/shim" \
+         "editor-placement.sh $T/shim" \
+         "editor-placement-wm.sh $T/shim" \
+         "editor-icon.sh $T/shim" \
+         "editor-restore.sh $T/shim" \
+         "editor-restore-stale.sh $T/shim" \
+         "plugin-keys.sh $T/shim" \
+         "plugin-keys-shortcut.sh $T/shim" \
+         "editor-key-catcher.sh $T/shim" \
+         "plugin-keys-focus.sh $T/shim" \
          "splash-zoom.sh $T/shim $PREFIX" \
          "theme-chrome.sh $T/shim $PREFIX" \
          "vst3-host-context.sh $T/shim $PREFIX" \

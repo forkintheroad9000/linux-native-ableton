@@ -5,6 +5,7 @@
 #include <QColor>
 #include <QProxyStyle>
 #include <QString>
+#include <QStringList>
 
 class QImage;
 class QMenu;
@@ -73,11 +74,20 @@ void placeSubmenus(QMenu *menu);
 // [Colors:Header], [Colors:Window] and [WM].
 QString colorSchemeText(const QColor &band, const QColor &text);
 
-// Writes the scheme into `dir` under a name made of the two colours and
-// returns its absolute path (empty when it cannot be written). The window
-// manager keeps a scheme by its path, so each colour set has its own file. Of
-// the files written here, the current and the previous one are kept.
-QString writeColorScheme(const QString &dir, const QColor &band, const QColor &text);
+// Writes the scheme into `dir` as `<prefix>-<band>-<text>.colors` and returns
+// its absolute path (empty when it cannot be written). The window manager
+// keeps a scheme by its path, so each colour set has its own file. For
+// "live", of the files written here the current and the previous one are
+// kept; for another prefix, the files with that prefix in `keep` and the one
+// written now.
+QString writeColorScheme(const QString &dir, const QColor &band, const QColor &text,
+                         const QString &prefix = QStringLiteral("live"), const QStringList &keep = {});
+
+// The most common colour in `image` (invalid when it is empty).
+QColor dominantColour(const QImage &image);
+// Title text for a title bar in `band`: a near-black or a near-white,
+// whichever stands out more.
+QColor titleTextFor(const QColor &band);
 
 // A widget's size in device pixels at `ratio`, rounded as Qt sizes its
 // backing store.

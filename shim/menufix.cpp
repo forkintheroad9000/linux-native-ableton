@@ -12,6 +12,8 @@
 #include <QTimer>
 #include <QRect>
 #include <QWidget>
+#include <QWindow>
+#include <QGuiApplication>
 #include <dlfcn.h>
 #include <climits>
 #include <cstdio>
@@ -128,6 +130,35 @@ void closeMenus()
             w->close();
 }
 
+
+// Qt blocks the mouse for every window that is not linked to an open
+// application-modal window (Export Audio/Video). A list's frame is exempt as a
+// tool tip, but the child window the pointer lands on is not, and nothing links
+// the list to the dialog, so its hovers and clicks were dropped. Link the list
+// to the modal window and have Qt re-evaluate it and its child windows.
+void linkToModal(QWidget *w)
+{
+    QWindow *modal = QGuiApplication::modalWindow();
+    QWindow *list = w->windowHandle();
+    if (!modal || !list || modal->isAncestorOf(list, QWindow::IncludeTransients))
+        return;
+    using UpdateBlocked = void (*)(QWindow *);
+    static const auto updateBlocked = reinterpret_cast<UpdateBlocked>(dlvsym(RTLD_DEFAULT,
+        "_ZN22QGuiApplicationPrivate19updateBlockedStatusEP7QWindow", "Qt_5_PRIVATE_API"));
+    if (!updateBlocked) { // without the refresh the link alone does not help: change nothing
+        static bool warned = false;
+        if (!warned)
+            trace("modal-list: no blocked-status refresh in this Qt\n");
+        warned = true;
+        return;
+    }
+    list->setTransientParent(modal);
+    updateBlocked(list);
+    for (QWindow *child : list->findChildren<QWindow *>())
+        updateBlocked(child);
+    trace("modal-list win=%x\n", int(quintptr(w) & 0xffffff));
+}
+
 class MenuCloser : public QObject {
 public:
     bool eventFilter(QObject *obj, QEvent *ev) override
@@ -180,6 +211,7 @@ public:
             trace("show %d,%d fromMenu=%d", pos.x(), pos.y(), fromMenu);
             trace(" win=%x geo=%dx%d", int(quintptr(w) & 0xffffff), w->width(), w->height());
             trace("+%d+%d\n", w->x(), w->y());
+            linkToModal(w);
             if (!fromMenu && w->geometry() == toggled && toggleClock.isValid()
                 && toggleClock.elapsed() < 300) {
                 trace("toggle-close x=%d\n", w->x());

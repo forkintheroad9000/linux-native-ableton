@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QHash>
 #include <QImage>
 #include <QMenu>
 #include <QPainter>
@@ -248,27 +249,58 @@ QString colorSchemeText(const QColor &band, const QColor &text)
     return s;
 }
 
-QString writeColorScheme(const QString &dir, const QColor &band, const QColor &text)
+QString writeColorScheme(const QString &dir, const QColor &band, const QColor &text, const QString &prefix,
+                         const QStringList &keep)
 {
-    static QString current, previous; // paths written by this process
+    static QString current, previous; // "live" paths written by this process
+    const bool live = prefix == QLatin1String("live");
     QDir folder(dir);
     if (!folder.mkpath(QStringLiteral(".")))
         return {};
     const QString path = folder.absoluteFilePath(
-        QStringLiteral("live-%1-%2.colors").arg(band.name().mid(1), text.name().mid(1)));
+        QStringLiteral("%1-%2-%3.colors").arg(prefix, band.name().mid(1), text.name().mid(1)));
     if (!QFile::exists(path)) {
         QSaveFile file(path);
         if (!file.open(QIODevice::WriteOnly) || file.write(colorSchemeText(band, text).toUtf8()) < 0 || !file.commit())
             return {};
     }
-    if (path != current) {
+    if (live && path != current) {
         previous = current;
         current = path;
     }
-    for (const QFileInfo &f : folder.entryInfoList({QStringLiteral("live-*.colors")}, QDir::Files))
-        if (f.absoluteFilePath() != current && f.absoluteFilePath() != previous)
-            QFile::remove(f.absoluteFilePath());
+    for (const QFileInfo &f : folder.entryInfoList({prefix + QStringLiteral("-*.colors")}, QDir::Files)) {
+        const QString other = f.absoluteFilePath();
+        const bool kept = live ? (other == current || other == previous) : (other == path || keep.contains(other));
+        if (!kept)
+            QFile::remove(other);
+    }
     return path;
+}
+
+QColor dominantColour(const QImage &image)
+{
+    const QImage rgb = image.convertToFormat(QImage::Format_RGB32);
+    QHash<QRgb, int> counts;
+    QRgb best = 0;
+    int bestCount = 0;
+    for (int y = 0; y < rgb.height(); ++y) {
+        const auto *line = reinterpret_cast<const QRgb *>(rgb.constScanLine(y));
+        for (int x = 0; x < rgb.width(); ++x) {
+            const QRgb c = line[x] | 0xff000000u;
+            const int n = ++counts[c];
+            if (n > bestCount) {
+                best = c;
+                bestCount = n;
+            }
+        }
+    }
+    return bestCount ? QColor(best) : QColor();
+}
+
+QColor titleTextFor(const QColor &band)
+{
+    const QColor dark(0x1a, 0x1a, 0x1a), light(0xe6, 0xe6, 0xe6);
+    return contrast(dark, band) > contrast(light, band) ? dark : light;
 }
 
 QSize deviceSize(const QSize &logical, qreal ratio)
